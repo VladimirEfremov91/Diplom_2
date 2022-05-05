@@ -5,32 +5,34 @@ import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.ValidatableResponse;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 @Epic("Работа с пользователями")
 @Feature("Логин пользователя")
 public class LoginUserTest {
-    UserClient userClient;
+    static UserClient userClient;
     User user;
     UserCredentials userCredentials;
     UserTokens userTokens;
 
-
+    @BeforeClass
+    public static void getReady() {
+        userClient = new UserClient();
+    }
     @Before
     public void setUp() {
-        userClient = new UserClient();
         user = UserGenerator.getRandom();
         userCredentials = new UserCredentials(user.getEmail(), user.getPassword());
         ValidatableResponse createTestUser = userClient.createUser(user);
-        userTokens = new UserTokens(createTestUser.extract().path("refreshToken"), createTestUser.extract().path("accessToken"));
+        userTokens = userClient.tokensExtractor(createTestUser);
     }
     @After
     public void tearDown() {
-        userClient = new UserClient();
-        try {
+        if (userTokens.getAccessToken() != null) {
             userClient.deleteUser(userTokens.getAccessToken());
-        } catch (Exception exception) {
+        } else {
             System.out.println("Пользователя невозможно удалить, так как он не был создан.");
         }
     }
@@ -42,7 +44,7 @@ public class LoginUserTest {
         assertEquals(200, loginResponse.extract().statusCode());
         assertEquals(user.getEmail(), loginResponse.extract().path("user.email"));
         assertEquals(user.getName(), loginResponse.extract().path("user.name"));
-        userTokens = new UserTokens(loginResponse.extract().path("refreshToken"), loginResponse.extract().path("accessToken"));
+        userTokens = userClient.tokensExtractor(loginResponse);
 
     }
     @Test

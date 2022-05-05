@@ -5,6 +5,7 @@ import static io.restassured.RestAssured.given;
 
 public class UserClient extends StellarburgersRestClient {
     private static final String USER_PATH = "api/auth";
+    UserTokens userTokens;
 
     @Step("Создание пользователя")
     public ValidatableResponse createUser(User user) {
@@ -73,5 +74,9 @@ public class UserClient extends StellarburgersRestClient {
                 .when()
                 .delete(USER_PATH + "/user")
                 .then().log().all();
+    }
+    @Step("Получение токенов пользователя")
+    public UserTokens tokensExtractor(ValidatableResponse response) {
+        return new UserTokens(response.extract().path("refreshToken"), response.extract().path("accessToken"));
     }
 }

@@ -6,15 +6,20 @@ import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.ValidatableResponse;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 @Epic("Работа с пользователями")
 @Feature("Создание пользователя")
 public class CreateUserTest {
-    UserClient userClient;
+    static UserClient userClient;
     User user;
     UserTokens userTokens;
+    @BeforeClass
+    public static void getReady() {
+        userClient = new UserClient();
+    }
 
     @Before
     public void setUp() {
@@ -22,22 +27,20 @@ public class CreateUserTest {
     }
 
     @After
+    //Здесь и далее переписанный tearDown. Отказался от исключения, теперь проверяю сам токен.
     public void tearDown() {
-        userClient = new UserClient();
-        try {
+        if (userTokens.getAccessToken() != null) {
             userClient.deleteUser(userTokens.getAccessToken());
-        } catch (Exception exception) {
+        } else {
             System.out.println("Пользователя невозможно удалить, так как он не был создан.");
         }
     }
 
     @Test
     @DisplayName("Создание пользователя")
-    @Description("123")
     public void userCanBeCreated() {
-        userClient = new UserClient();
         ValidatableResponse createUser = userClient.createUser(user);
-        userTokens = new UserTokens(createUser.extract().path("refreshToken"), createUser.extract().path("accessToken"));
+        userTokens = userClient.tokensExtractor(createUser);
         assertEquals(createUser.extract().statusCode(), 200);
         assertEquals(createUser.extract().path("user.email"), user.getEmail());
         assertEquals(createUser.extract().path("user.name"), user.getName());
@@ -45,9 +48,8 @@ public class CreateUserTest {
     @Test
     @DisplayName("Создание пользователя, который уже зарегистрирован")
     public void canNotCreateRegisteredUser() {
-        userClient = new UserClient();
         ValidatableResponse createFirstUser = userClient.createUser(user);
-        userTokens = new UserTokens(createFirstUser.extract().path("refreshToken"), createFirstUser.extract().path("accessToken"));
+        userTokens = userClient.tokensExtractor(createFirstUser);
         ValidatableResponse createSecondUser = userClient.createUser(user);
         assertEquals(createSecondUser.extract().statusCode(), 403);
         assertEquals(createSecondUser.extract().path("message"), "User already exists");
@@ -59,8 +61,8 @@ public class CreateUserTest {
                 .password(user.getPassword())
                 .name(user.getName())
                 .build();
-        userClient = new UserClient();
         ValidatableResponse createUser = userClient.createUser(userWithoutEmail);
+        userTokens = userClient.tokensExtractor(createUser);
         assertEquals(createUser.extract().statusCode(), 403);
         assertEquals(createUser.extract().path("message"), "Email, password and name are required fields");
     }
@@ -71,8 +73,8 @@ public class CreateUserTest {
                 .email(user.getEmail())
                 .name(user.getName())
                 .build();
-        userClient = new UserClient();
         ValidatableResponse createUser = userClient.createUser(userWithoutPassword);
+        userTokens = userClient.tokensExtractor(createUser);
         assertEquals(createUser.extract().statusCode(), 403);
         assertEquals(createUser.extract().path("message"), "Email, password and name are required fields");
     }
@@ -83,8 +85,8 @@ public class CreateUserTest {
                 .email(user.getEmail())
                 .name(user.getPassword())
                 .build();
-        userClient = new UserClient();
         ValidatableResponse createUser = userClient.createUser(userWithoutName);
+        userTokens = userClient.tokensExtractor(createUser);
         assertEquals(createUser.extract().statusCode(), 403);
         assertEquals(createUser.extract().path("message"), "Email, password and name are required fields");
     }
